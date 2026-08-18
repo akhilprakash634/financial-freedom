@@ -30,13 +30,18 @@ class ReceivablesScreen extends ConsumerWidget {
       ),
       body: occurrencesAsync.when(
         data: (occurrences) {
-          final unpaid = occurrences.where((occ) => occ.status != 'received' && occ.status != 'cancelled').toList();
+          // Filter only overdue, due, or delayed items with pending balance > 0
+          final unpaid = occurrences.where((occ) {
+            final isUnpaidStatus = occ.status == 'overdue' || occ.status == 'due' || occ.status == 'delayed';
+            final hasPendingBalance = (occ.amount - occ.receivedAmount) > 0;
+            return isUnpaidStatus && hasPendingBalance;
+          }).toList();
           
           final salaryArrears = unpaid.where((occ) => occ.title.toLowerCase().contains('salary')).toList();
           final freelance = unpaid.where((occ) => !occ.title.toLowerCase().contains('salary')).toList();
 
-          final totalOwed = unpaid.fold(0.0, (sum, occ) => sum + (occ.amount - occ.receivedAmount));
-          final totalSalaryArrears = salaryArrears.fold(0.0, (sum, occ) => sum + (occ.amount - occ.receivedAmount));
+          final totalOwed = IncomeSyncEngine.calculateMoneyOwedToMe(occurrences);
+          final totalSalaryArrears = IncomeSyncEngine.calculateSalaryArrears(occurrences);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -87,7 +92,7 @@ class ReceivablesScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Salary Arrears (${salaryArrears.length} months pending)',
+                      'Salary Arrears (${salaryArrears.length} ${salaryArrears.length == 1 ? "month" : "months"} pending)',
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     Text(
@@ -183,6 +188,11 @@ class ReceivablesScreen extends ConsumerWidget {
                       icon: const Icon(Icons.edit, size: 18, color: Color(0xFF38BDF8)),
                       onPressed: () => _showAddReceivableDialog(context, ref, existing: occ),
                       tooltip: 'Edit Receivable',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.negativeRed),
+                      onPressed: () => _confirmDelete(context, ref, occ),
+                      tooltip: 'Delete Receivable',
                     ),
                   ],
                 ),
@@ -465,5 +475,28 @@ class ReceivablesScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, IncomeOccurrence occ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        title: Text('Delete ${occ.title}?'),
+        content: const Text('Are you sure you want to delete this receivable item?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.negativeRed),
+            onPressed: () async {
+              final db = ref.read(databaseProvider);
+              await (db.delete(db.incomeOccurrences)..where((tbl) => tbl.id.equals(occ.id))).go();
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 }

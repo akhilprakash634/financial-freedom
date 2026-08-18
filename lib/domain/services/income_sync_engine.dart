@@ -3,14 +3,36 @@ import '../../data/database/app_database.dart';
 import '../../core/utils/date_utils.dart';
 
 class IncomeSyncEngine {
+  /// Cleans up any duplicate unpaid income occurrences matching the same title, year, and month.
+  static Future<void> cleanupDuplicateOccurrences(AppDatabase db) async {
+    final all = await db.select(db.incomeOccurrences).get();
+    final seenKeys = <String, int>{};
+    final idsToDelete = <int>[];
+
+    for (final occ in all) {
+      if (occ.status == 'received' || occ.status == 'cancelled') continue;
+      final key = '${occ.title.toLowerCase().trim()}_${occ.expectedDate.year}_${occ.expectedDate.month}';
+      if (seenKeys.containsKey(key)) {
+        idsToDelete.add(occ.id);
+      } else {
+        seenKeys[key] = occ.id;
+      }
+    }
+
+    if (idsToDelete.isNotEmpty) {
+      await (db.delete(db.incomeOccurrences)..where((tbl) => tbl.id.isIn(idsToDelete))).go();
+    }
+  }
+
   /// Idempotently synchronizes income sources to income occurrences in SQLite.
-  /// Generates past overdue occurrences (e.g. June, July) and current/future occurrences.
+  /// Deduplicates by incomeSourceId OR title + (year, month).
   static Future<void> syncIncomeOccurrences({
     required AppDatabase db,
     required List<IncomeSource> incomeSources,
     required List<IncomeOccurrence> existingOccurrences,
     required DateTime currentDate,
   }) async {
+    await cleanupDuplicateOccurrences(db);
     final today = AppDateUtils.dateOnly(currentDate);
 
     for (final source in incomeSources) {
@@ -27,9 +49,9 @@ class IncomeSyncEngine {
           final year = targetDate.year;
           final month = targetDate.month;
 
-          // Check if an occurrence already exists for this source in (year, month)
+          // Deduplicate: check if an occurrence exists for this source OR matching title in (year, month)
           final exists = existingOccurrences.any((occ) =>
-              occ.incomeSourceId == source.id &&
+              (occ.incomeSourceId == source.id || occ.title.toLowerCase().trim() == source.sourceName.toLowerCase().trim()) &&
               occ.expectedDate.year == year &&
               occ.expectedDate.month == month);
 
@@ -66,7 +88,9 @@ class IncomeSyncEngine {
         }
       } else {
         // One-time income source (e.g. Freelance)
-        final exists = existingOccurrences.any((occ) => occ.incomeSourceId == source.id);
+        final exists = existingOccurrences.any((occ) =>
+            occ.incomeSourceId == source.id || occ.title.toLowerCase().trim() == source.sourceName.toLowerCase().trim());
+
         if (!exists) {
           final expDate = AppDateUtils.dateOnly(source.expectedDate);
           String status = source.status;
@@ -94,7 +118,7 @@ class IncomeSyncEngine {
     for (final occ in existingOccurrences) {
       if (occ.status != 'received' && occ.status != 'cancelled') {
         final expDate = AppDateUtils.dateOnly(occ.expectedDate);
-        if (expDate.isBefore(today) && occ.status != 'overdue') {
+        if (expDate.isBefore(today) && occ.status != 'overdue' && occ.status != 'delayed') {
           await (db.update(db.incomeOccurrences)..where((tbl) => tbl.id.equals(occ.id)))
               .write(const IncomeOccurrencesCompanion(status: Value('overdue')));
         }
@@ -103,7 +127,6 @@ class IncomeSyncEngine {
   }
 
   /// Settles a receivable occurrence with full or partial payment.
-  /// Default behavior: settles specified occurrence or oldest unpaid occurrence first.
   /// Creates exactly ONE actual income LedgerTransaction.
   static Future<void> settleReceivable({
     required AppDatabase db,
@@ -140,7 +163,6 @@ class IncomeSyncEngine {
   }
 
   /// Reconciles an account balance by inserting an adjustment transaction.
-  /// Difference = actualBankBalance - calculatedLedgerBalance.
   static Future<void> reconcileAccountBalance({
     required AppDatabase db,
     required int accountId,
@@ -180,12 +202,7 @@ class IncomeSyncEngine {
   static double calculateMoneyOwedToMe(List<IncomeOccurrence> occurrences) {
     double total = 0.0;
     for (final occ in occurrences) {
-      final status = occ.status;
-      if (status == 'expected' ||
-          status == 'confirmed' ||
-          status == 'due' ||
-          status == 'overdue' ||
-          status == 'delayed') {
+      if (occ.status != 'received' && occ.status != 'cancelled') {
         total += (occ.amount - occ.receivedAmount);
       }
     }
