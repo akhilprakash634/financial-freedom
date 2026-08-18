@@ -3204,6 +3204,38 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
       'notes', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _creditLimitMeta =
+      const VerificationMeta('creditLimit');
+  @override
+  late final GeneratedColumn<double> creditLimit = GeneratedColumn<double>(
+      'credit_limit', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _currentMonthDueMeta =
+      const VerificationMeta('currentMonthDue');
+  @override
+  late final GeneratedColumn<double> currentMonthDue = GeneratedColumn<double>(
+      'current_month_due', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _minimumDueMeta =
+      const VerificationMeta('minimumDue');
+  @override
+  late final GeneratedColumn<double> minimumDue = GeneratedColumn<double>(
+      'minimum_due', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
+  static const VerificationMeta _billingDayMeta =
+      const VerificationMeta('billingDay');
+  @override
+  late final GeneratedColumn<int> billingDay = GeneratedColumn<int>(
+      'billing_day', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -3231,6 +3263,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         priority,
         status,
         notes,
+        creditLimit,
+        currentMonthDue,
+        minimumDue,
+        billingDay,
         createdAt
       ];
   @override
@@ -3338,6 +3374,30 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
+    if (data.containsKey('credit_limit')) {
+      context.handle(
+          _creditLimitMeta,
+          creditLimit.isAcceptableOrUnknown(
+              data['credit_limit']!, _creditLimitMeta));
+    }
+    if (data.containsKey('current_month_due')) {
+      context.handle(
+          _currentMonthDueMeta,
+          currentMonthDue.isAcceptableOrUnknown(
+              data['current_month_due']!, _currentMonthDueMeta));
+    }
+    if (data.containsKey('minimum_due')) {
+      context.handle(
+          _minimumDueMeta,
+          minimumDue.isAcceptableOrUnknown(
+              data['minimum_due']!, _minimumDueMeta));
+    }
+    if (data.containsKey('billing_day')) {
+      context.handle(
+          _billingDayMeta,
+          billingDay.isAcceptableOrUnknown(
+              data['billing_day']!, _billingDayMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -3385,6 +3445,14 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      creditLimit: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}credit_limit'])!,
+      currentMonthDue: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}current_month_due'])!,
+      minimumDue: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}minimum_due'])!,
+      billingDay: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}billing_day'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -3414,6 +3482,10 @@ class Debt extends DataClass implements Insertable<Debt> {
   final int priority;
   final String status;
   final String? notes;
+  final double creditLimit;
+  final double currentMonthDue;
+  final double minimumDue;
+  final int billingDay;
   final DateTime createdAt;
   const Debt(
       {required this.id,
@@ -3433,6 +3505,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       required this.priority,
       required this.status,
       this.notes,
+      required this.creditLimit,
+      required this.currentMonthDue,
+      required this.minimumDue,
+      required this.billingDay,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3458,6 +3534,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
+    map['credit_limit'] = Variable<double>(creditLimit);
+    map['current_month_due'] = Variable<double>(currentMonthDue);
+    map['minimum_due'] = Variable<double>(minimumDue);
+    map['billing_day'] = Variable<int>(billingDay);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -3484,6 +3564,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       status: Value(status),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      creditLimit: Value(creditLimit),
+      currentMonthDue: Value(currentMonthDue),
+      minimumDue: Value(minimumDue),
+      billingDay: Value(billingDay),
       createdAt: Value(createdAt),
     );
   }
@@ -3509,6 +3593,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       priority: serializer.fromJson<int>(json['priority']),
       status: serializer.fromJson<String>(json['status']),
       notes: serializer.fromJson<String?>(json['notes']),
+      creditLimit: serializer.fromJson<double>(json['creditLimit']),
+      currentMonthDue: serializer.fromJson<double>(json['currentMonthDue']),
+      minimumDue: serializer.fromJson<double>(json['minimumDue']),
+      billingDay: serializer.fromJson<int>(json['billingDay']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -3533,6 +3621,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       'priority': serializer.toJson<int>(priority),
       'status': serializer.toJson<String>(status),
       'notes': serializer.toJson<String?>(notes),
+      'creditLimit': serializer.toJson<double>(creditLimit),
+      'currentMonthDue': serializer.toJson<double>(currentMonthDue),
+      'minimumDue': serializer.toJson<double>(minimumDue),
+      'billingDay': serializer.toJson<int>(billingDay),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -3555,6 +3647,10 @@ class Debt extends DataClass implements Insertable<Debt> {
           int? priority,
           String? status,
           Value<String?> notes = const Value.absent(),
+          double? creditLimit,
+          double? currentMonthDue,
+          double? minimumDue,
+          int? billingDay,
           DateTime? createdAt}) =>
       Debt(
         id: id ?? this.id,
@@ -3574,6 +3670,10 @@ class Debt extends DataClass implements Insertable<Debt> {
         priority: priority ?? this.priority,
         status: status ?? this.status,
         notes: notes.present ? notes.value : this.notes,
+        creditLimit: creditLimit ?? this.creditLimit,
+        currentMonthDue: currentMonthDue ?? this.currentMonthDue,
+        minimumDue: minimumDue ?? this.minimumDue,
+        billingDay: billingDay ?? this.billingDay,
         createdAt: createdAt ?? this.createdAt,
       );
   Debt copyWithCompanion(DebtsCompanion data) {
@@ -3609,6 +3709,15 @@ class Debt extends DataClass implements Insertable<Debt> {
       priority: data.priority.present ? data.priority.value : this.priority,
       status: data.status.present ? data.status.value : this.status,
       notes: data.notes.present ? data.notes.value : this.notes,
+      creditLimit:
+          data.creditLimit.present ? data.creditLimit.value : this.creditLimit,
+      currentMonthDue: data.currentMonthDue.present
+          ? data.currentMonthDue.value
+          : this.currentMonthDue,
+      minimumDue:
+          data.minimumDue.present ? data.minimumDue.value : this.minimumDue,
+      billingDay:
+          data.billingDay.present ? data.billingDay.value : this.billingDay,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -3633,31 +3742,40 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('priority: $priority, ')
           ..write('status: $status, ')
           ..write('notes: $notes, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('currentMonthDue: $currentMonthDue, ')
+          ..write('minimumDue: $minimumDue, ')
+          ..write('billingDay: $billingDay, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      name,
-      lenderBorrower,
-      debtType,
-      originalAmount,
-      currentBalance,
-      interestRate,
-      interestType,
-      emiAmount,
-      paymentFrequency,
-      dueDay,
-      startDate,
-      endDate,
-      tenureMonths,
-      priority,
-      status,
-      notes,
-      createdAt);
+  int get hashCode => Object.hashAll([
+        id,
+        name,
+        lenderBorrower,
+        debtType,
+        originalAmount,
+        currentBalance,
+        interestRate,
+        interestType,
+        emiAmount,
+        paymentFrequency,
+        dueDay,
+        startDate,
+        endDate,
+        tenureMonths,
+        priority,
+        status,
+        notes,
+        creditLimit,
+        currentMonthDue,
+        minimumDue,
+        billingDay,
+        createdAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3679,6 +3797,10 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.priority == this.priority &&
           other.status == this.status &&
           other.notes == this.notes &&
+          other.creditLimit == this.creditLimit &&
+          other.currentMonthDue == this.currentMonthDue &&
+          other.minimumDue == this.minimumDue &&
+          other.billingDay == this.billingDay &&
           other.createdAt == this.createdAt);
 }
 
@@ -3700,6 +3822,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<int> priority;
   final Value<String> status;
   final Value<String?> notes;
+  final Value<double> creditLimit;
+  final Value<double> currentMonthDue;
+  final Value<double> minimumDue;
+  final Value<int> billingDay;
   final Value<DateTime> createdAt;
   const DebtsCompanion({
     this.id = const Value.absent(),
@@ -3719,6 +3845,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.priority = const Value.absent(),
     this.status = const Value.absent(),
     this.notes = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.currentMonthDue = const Value.absent(),
+    this.minimumDue = const Value.absent(),
+    this.billingDay = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   DebtsCompanion.insert({
@@ -3739,6 +3869,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.priority = const Value.absent(),
     this.status = const Value.absent(),
     this.notes = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.currentMonthDue = const Value.absent(),
+    this.minimumDue = const Value.absent(),
+    this.billingDay = const Value.absent(),
     this.createdAt = const Value.absent(),
   })  : name = Value(name),
         lenderBorrower = Value(lenderBorrower),
@@ -3765,6 +3899,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<int>? priority,
     Expression<String>? status,
     Expression<String>? notes,
+    Expression<double>? creditLimit,
+    Expression<double>? currentMonthDue,
+    Expression<double>? minimumDue,
+    Expression<int>? billingDay,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -3785,6 +3923,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (priority != null) 'priority': priority,
       if (status != null) 'status': status,
       if (notes != null) 'notes': notes,
+      if (creditLimit != null) 'credit_limit': creditLimit,
+      if (currentMonthDue != null) 'current_month_due': currentMonthDue,
+      if (minimumDue != null) 'minimum_due': minimumDue,
+      if (billingDay != null) 'billing_day': billingDay,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -3807,6 +3949,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       Value<int>? priority,
       Value<String>? status,
       Value<String?>? notes,
+      Value<double>? creditLimit,
+      Value<double>? currentMonthDue,
+      Value<double>? minimumDue,
+      Value<int>? billingDay,
       Value<DateTime>? createdAt}) {
     return DebtsCompanion(
       id: id ?? this.id,
@@ -3826,6 +3972,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       priority: priority ?? this.priority,
       status: status ?? this.status,
       notes: notes ?? this.notes,
+      creditLimit: creditLimit ?? this.creditLimit,
+      currentMonthDue: currentMonthDue ?? this.currentMonthDue,
+      minimumDue: minimumDue ?? this.minimumDue,
+      billingDay: billingDay ?? this.billingDay,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -3884,6 +4034,18 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (creditLimit.present) {
+      map['credit_limit'] = Variable<double>(creditLimit.value);
+    }
+    if (currentMonthDue.present) {
+      map['current_month_due'] = Variable<double>(currentMonthDue.value);
+    }
+    if (minimumDue.present) {
+      map['minimum_due'] = Variable<double>(minimumDue.value);
+    }
+    if (billingDay.present) {
+      map['billing_day'] = Variable<int>(billingDay.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3910,6 +4072,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('priority: $priority, ')
           ..write('status: $status, ')
           ..write('notes: $notes, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('currentMonthDue: $currentMonthDue, ')
+          ..write('minimumDue: $minimumDue, ')
+          ..write('billingDay: $billingDay, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -8325,6 +8491,10 @@ typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
   Value<int> priority,
   Value<String> status,
   Value<String?> notes,
+  Value<double> creditLimit,
+  Value<double> currentMonthDue,
+  Value<double> minimumDue,
+  Value<int> billingDay,
   Value<DateTime> createdAt,
 });
 typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
@@ -8345,6 +8515,10 @@ typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
   Value<int> priority,
   Value<String> status,
   Value<String?> notes,
+  Value<double> creditLimit,
+  Value<double> currentMonthDue,
+  Value<double> minimumDue,
+  Value<int> billingDay,
   Value<DateTime> createdAt,
 });
 
@@ -8429,6 +8603,19 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get creditLimit => $composableBuilder(
+      column: $table.creditLimit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get currentMonthDue => $composableBuilder(
+      column: $table.currentMonthDue,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get minimumDue => $composableBuilder(
+      column: $table.minimumDue, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get billingDay => $composableBuilder(
+      column: $table.billingDay, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -8522,6 +8709,19 @@ class $$DebtsTableOrderingComposer
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get creditLimit => $composableBuilder(
+      column: $table.creditLimit, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get currentMonthDue => $composableBuilder(
+      column: $table.currentMonthDue,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get minimumDue => $composableBuilder(
+      column: $table.minimumDue, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get billingDay => $composableBuilder(
+      column: $table.billingDay, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -8585,6 +8785,18 @@ class $$DebtsTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<double> get creditLimit => $composableBuilder(
+      column: $table.creditLimit, builder: (column) => column);
+
+  GeneratedColumn<double> get currentMonthDue => $composableBuilder(
+      column: $table.currentMonthDue, builder: (column) => column);
+
+  GeneratedColumn<double> get minimumDue => $composableBuilder(
+      column: $table.minimumDue, builder: (column) => column);
+
+  GeneratedColumn<int> get billingDay => $composableBuilder(
+      column: $table.billingDay, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8651,6 +8863,10 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<int> priority = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<double> creditLimit = const Value.absent(),
+            Value<double> currentMonthDue = const Value.absent(),
+            Value<double> minimumDue = const Value.absent(),
+            Value<int> billingDay = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
               DebtsCompanion(
@@ -8671,6 +8887,10 @@ class $$DebtsTableTableManager extends RootTableManager<
             priority: priority,
             status: status,
             notes: notes,
+            creditLimit: creditLimit,
+            currentMonthDue: currentMonthDue,
+            minimumDue: minimumDue,
+            billingDay: billingDay,
             createdAt: createdAt,
           ),
           createCompanionCallback: ({
@@ -8691,6 +8911,10 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<int> priority = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<double> creditLimit = const Value.absent(),
+            Value<double> currentMonthDue = const Value.absent(),
+            Value<double> minimumDue = const Value.absent(),
+            Value<int> billingDay = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
               DebtsCompanion.insert(
@@ -8711,6 +8935,10 @@ class $$DebtsTableTableManager extends RootTableManager<
             priority: priority,
             status: status,
             notes: notes,
+            creditLimit: creditLimit,
+            currentMonthDue: currentMonthDue,
+            minimumDue: minimumDue,
+            billingDay: billingDay,
             createdAt: createdAt,
           ),
           withReferenceMapper: (p0) => p0

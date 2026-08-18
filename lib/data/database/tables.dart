@@ -93,6 +93,13 @@ class Debts extends Table {
   IntColumn get priority => integer().withDefault(const Constant(1))();
   TextColumn get status => text().withDefault(const Constant('active'))(); // active, settled
   TextColumn get notes => text().nullable()();
+  
+  // Credit Card Specialized Fields (Schema v4)
+  RealColumn get creditLimit => real().withDefault(const Constant(0.0))();
+  RealColumn get currentMonthDue => real().withDefault(const Constant(0.0))();
+  RealColumn get minimumDue => real().withDefault(const Constant(0.0))();
+  IntColumn get billingDay => integer().withDefault(const Constant(1))();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 

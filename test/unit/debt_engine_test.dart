@@ -18,10 +18,15 @@ void main() {
       paymentFrequency: 'monthly',
       dueDay: 10,
       startDate: DateTime(2026, 1, 1),
+      endDate: null,
       tenureMonths: 12,
       priority: 1,
       status: 'active',
       notes: null,
+      creditLimit: 100000,
+      currentMonthDue: 15000,
+      minimumDue: 1500,
+      billingDay: 15,
       createdAt: DateTime.now(),
     );
 
@@ -38,10 +43,15 @@ void main() {
       paymentFrequency: 'monthly',
       dueDay: 5,
       startDate: DateTime(2026, 1, 1),
+      endDate: null,
       tenureMonths: 24,
       priority: 2,
       status: 'active',
       notes: null,
+      creditLimit: 0,
+      currentMonthDue: 0,
+      minimumDue: 0,
+      billingDay: 1,
       createdAt: DateTime.now(),
     );
 
@@ -58,10 +68,15 @@ void main() {
       paymentFrequency: 'monthly',
       dueDay: 15,
       startDate: DateTime(2026, 1, 1),
+      endDate: null,
       tenureMonths: 5,
       priority: 3,
       status: 'active',
       notes: null,
+      creditLimit: 0,
+      currentMonthDue: 0,
+      minimumDue: 0,
+      billingDay: 1,
       createdAt: DateTime.now(),
     );
 
