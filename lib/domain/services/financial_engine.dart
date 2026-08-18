@@ -215,8 +215,11 @@ class FinancialEngine {
       }
     }
     for (final occ in incomeOccurrences) {
-      if (AppDateUtils.isSameDay(occ.expectedDate, currentDate) && occ.status != 'received') {
-        todayActions.add('Expected Income: ${occ.title} — ${settings.primaryCurrency}${(occ.amount - occ.receivedAmount).toStringAsFixed(0)} due today');
+      final isDueToday = AppDateUtils.isSameDay(occ.expectedDate, currentDate) || occ.status == 'due';
+      final isPending = occ.status != 'received' && occ.status != 'cancelled' && occ.status != 'delayed' && occ.status != 'overdue';
+
+      if (isDueToday && isPending && (occ.amount - occ.receivedAmount) > 0) {
+        todayActions.add('Expected Income: ${occ.title} — ${settings.primaryCurrency}${(occ.amount - occ.receivedAmount).toStringAsFixed(0)} expected today');
       }
     }
     if (todayActions.isEmpty) {

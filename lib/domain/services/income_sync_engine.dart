@@ -38,6 +38,34 @@ class IncomeSyncEngine {
     for (final source in incomeSources) {
       if (source.status == 'cancelled') continue;
 
+      // First: Resync existing unreceived occurrences if parent source date or amount was updated
+      for (final occ in existingOccurrences) {
+        if (occ.incomeSourceId == source.id &&
+            occ.status != 'received' &&
+            occ.status != 'cancelled' &&
+            occ.status != 'delayed') {
+          final srcExpDate = AppDateUtils.dateOnly(source.expectedDate);
+          if (!AppDateUtils.isSameDay(occ.expectedDate, srcExpDate) || occ.amount != source.amount) {
+            String newStatus;
+            if (srcExpDate.isBefore(today)) {
+              newStatus = 'overdue';
+            } else if (AppDateUtils.isSameDay(srcExpDate, today)) {
+              newStatus = 'due';
+            } else {
+              newStatus = source.status == 'confirmed' ? 'confirmed' : 'expected';
+            }
+
+            await (db.update(db.incomeOccurrences)..where((tbl) => tbl.id.equals(occ.id))).write(
+              IncomeOccurrencesCompanion(
+                amount: Value(source.amount),
+                expectedDate: Value(srcExpDate),
+                status: Value(newStatus),
+              ),
+            );
+          }
+        }
+      }
+
       if (source.frequency == 'monthly') {
         // Start from source.expectedDate or earliest start date
         var targetDate = AppDateUtils.dateOnly(source.expectedDate);
