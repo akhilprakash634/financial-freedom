@@ -82,12 +82,22 @@ class FinancialEngine {
       }
     }
 
-    // 4. Mandatory Debt Payments
+    // 4. Mandatory Debt Payments & Compulsory Minimum Due
     final activeDebts = debts.where((d) => d.status == 'active' && d.currentBalance > 0).toList();
     double totalMonthlyDebtPayment = 0.0;
+    double minimumRequiredDebtPayment = 0.0;
+
     for (final debt in activeDebts) {
-      if (debt.emiAmount > 0) {
-        totalMonthlyDebtPayment += debt.emiAmount;
+      if (debt.debtType == 'credit_card') {
+        final stmtDue = debt.currentMonthDue > 0 ? debt.currentMonthDue : debt.minimumDue;
+        final minDue = debt.minimumDue > 0 ? debt.minimumDue : stmtDue;
+        totalMonthlyDebtPayment += stmtDue;
+        minimumRequiredDebtPayment += minDue;
+      } else {
+        if (debt.emiAmount > 0) {
+          totalMonthlyDebtPayment += debt.emiAmount;
+          minimumRequiredDebtPayment += debt.emiAmount;
+        }
       }
     }
 
@@ -95,8 +105,11 @@ class FinancialEngine {
     final nextConfirmedCutoff = nextConfirmedDate ?? today.add(const Duration(days: 30));
     double mandatoryBeforeNextConfirmed = 0.0;
     for (final debt in activeDebts) {
-      if (debt.emiAmount > 0) {
-        // Calculate due date in current month
+      final paymentAmount = debt.debtType == 'credit_card'
+          ? (debt.currentMonthDue > 0 ? debt.currentMonthDue : debt.minimumDue)
+          : debt.emiAmount;
+
+      if (paymentAmount > 0) {
         final dueDay = AppDateUtils.clampDayOfMonth(today.year, today.month, debt.dueDay);
         var dueDate = DateTime(today.year, today.month, dueDay);
         if (dueDate.isBefore(today)) {
@@ -106,7 +119,7 @@ class FinancialEngine {
         }
 
         if (!dueDate.isAfter(nextConfirmedCutoff)) {
-          mandatoryBeforeNextConfirmed += debt.emiAmount;
+          mandatoryBeforeNextConfirmed += paymentAmount;
         }
       }
     }
@@ -122,10 +135,7 @@ class FinancialEngine {
     final buffer = settings.minimumCashBuffer;
 
     // 6. Safe To Spend Now vs Monthly Disposable Amount
-    // Safe To Spend Now = Actual Cash - Mandatory before next confirmed income - Planned Expenses - Buffer
     final safeToSpendNow = actualCash - mandatoryBeforeNextConfirmed - plannedExpenses - buffer;
-
-    // Monthly Disposable Amount = Actual Cash + Confirmed Income - Monthly Mandatory - Planned Expenses - Buffer
     final monthlyDisposableAmount = actualCash + confirmedIncome - totalMonthlyDebtPayment - plannedExpenses - buffer;
 
     // 7. Cash Flow Warning check
@@ -196,11 +206,12 @@ class FinancialEngine {
     // 11. Actions for today
     final todayActions = <String>[];
     if (hasCashFlowWarning) {
-      todayActions.add('⚠️ Cash Flow Warning: Available cash (₹${actualCash.toStringAsFixed(0)}) is lower than upcoming mandatory obligations.');
+      todayActions.add('⚠️ Cash Flow Warning: Available cash (${settings.primaryCurrency}${actualCash.toStringAsFixed(0)}) is lower than upcoming mandatory obligations.');
     }
     for (final debt in activeDebts) {
       if (debt.dueDay == currentDate.day) {
-        todayActions.add('Pay ${debt.name} — ${settings.primaryCurrency}${debt.emiAmount.toStringAsFixed(0)} due today');
+        final amountDue = debt.debtType == 'credit_card' ? (debt.currentMonthDue > 0 ? debt.currentMonthDue : debt.minimumDue) : debt.emiAmount;
+        todayActions.add('Pay ${debt.name} — ${settings.primaryCurrency}${amountDue.toStringAsFixed(0)} due today');
       }
     }
     for (final occ in incomeOccurrences) {
@@ -237,6 +248,7 @@ class FinancialEngine {
       financialRealityIndicators: realityMap,
       totalDebt: totalDebt,
       totalMonthlyDebtPayment: totalMonthlyDebtPayment,
+      minimumRequiredDebtPayment: minimumRequiredDebtPayment,
       activeDebtCount: activeDebts.length,
       nextDebtTarget: nextTarget,
       projectedDebtFreeDate: debtPlan.projectedDebtFreeDate,

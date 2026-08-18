@@ -276,7 +276,8 @@ class DebtsScreen extends ConsumerWidget {
   // CREDIT CARD ITEM WIDGET
   // ---------------------------------------------------------------------------
   Widget _buildCreditCardItem(BuildContext context, WidgetRef ref, Debt card, String currency) {
-    final availableCredit = (card.creditLimit - card.currentBalance).clamp(0.0, card.creditLimit);
+    final availableCredit = card.creditLimit - card.currentBalance;
+    final isOverLimit = availableCredit < 0;
     final utilization = card.creditLimit > 0 ? (card.currentBalance / card.creditLimit).clamp(0.0, 1.0) : 0.0;
 
     return Card(
@@ -322,7 +323,7 @@ class DebtsScreen extends ConsumerWidget {
             LinearProgressIndicator(
               value: utilization,
               backgroundColor: AppTheme.borderDark,
-              color: utilization > 0.7 ? AppTheme.negativeRed : const Color(0xFF6366F1),
+              color: isOverLimit || utilization > 0.7 ? AppTheme.negativeRed : const Color(0xFF6366F1),
               minHeight: 6,
               borderRadius: BorderRadius.circular(3),
             ),
@@ -331,7 +332,16 @@ class DebtsScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Limit: ${CurrencyFormatter.format(card.creditLimit, currencySymbol: currency)}', style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray)),
-                Text('Available: ${CurrencyFormatter.format(availableCredit, currencySymbol: currency)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                Text(
+                  isOverLimit
+                      ? 'Available: ${CurrencyFormatter.format(availableCredit, currencySymbol: currency)} (Over Limit)'
+                      : 'Available: ${CurrencyFormatter.format(availableCredit, currencySymbol: currency)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isOverLimit ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),

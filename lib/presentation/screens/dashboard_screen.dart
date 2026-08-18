@@ -377,7 +377,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // 7. Debt Summary
+                // 7. Debt & Obligation Summary Header with Minimum Due
                 Card(
                   color: AppTheme.cardDark,
                   child: Padding(
@@ -390,9 +390,9 @@ class DashboardScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: _buildDebtStat('Total Debt', CurrencyFormatter.format(snapshot.totalDebt, currencySymbol: currency))),
-                            Expanded(child: _buildDebtStat('Monthly EMI', CurrencyFormatter.format(snapshot.totalMonthlyDebtPayment, currencySymbol: currency))),
-                            Expanded(child: _buildDebtStat('Active Debts', '${snapshot.activeDebtCount}')),
+                            Expanded(child: _buildDebtStat('Total Outstanding', CurrencyFormatter.format(snapshot.totalDebt, currencySymbol: currency))),
+                            Expanded(child: _buildDebtStat('Full Monthly Bill & EMI', CurrencyFormatter.format(snapshot.totalMonthlyDebtPayment, currencySymbol: currency))),
+                            Expanded(child: _buildDebtStat('Compulsory Minimum Due', CurrencyFormatter.format(snapshot.minimumRequiredDebtPayment, currencySymbol: currency))),
                           ],
                         ),
                         const Divider(height: 24, color: Color(0xFF334155)),

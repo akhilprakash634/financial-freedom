@@ -29,6 +29,7 @@ class FinancialSnapshot {
 
   final double totalDebt;
   final double totalMonthlyDebtPayment;
+  final double minimumRequiredDebtPayment; // Compulsory EMI + Card Minimum Due
   final int activeDebtCount;
   final String nextDebtTarget;
   final DateTime? projectedDebtFreeDate;
@@ -60,6 +61,7 @@ class FinancialSnapshot {
     required this.financialRealityIndicators,
     required this.totalDebt,
     required this.totalMonthlyDebtPayment,
+    required this.minimumRequiredDebtPayment,
     required this.activeDebtCount,
     required this.nextDebtTarget,
     this.projectedDebtFreeDate,
