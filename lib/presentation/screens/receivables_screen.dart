@@ -22,6 +22,12 @@ class ReceivablesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Money Owed To You (Receivables)'),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddReceivableDialog(context, ref),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Pending Salary / Receivable'),
+        backgroundColor: const Color(0xFF38BDF8),
+      ),
       body: occurrencesAsync.when(
         data: (occurrences) {
           final unpaid = occurrences.where((occ) => occ.status != 'received' && occ.status != 'cancelled').toList();
@@ -113,7 +119,11 @@ class ReceivablesScreen extends ConsumerWidget {
                       children: [
                         Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 48),
                         SizedBox(height: 12),
-                        Text('No outstanding receivables!', style: TextStyle(color: AppTheme.neutralGray, fontSize: 16)),
+                        Text(
+                          'No outstanding receivables!\nTap "+ Add Pending Salary / Receivable" to add any owed amounts.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.neutralGray, fontSize: 15),
+                        ),
                       ],
                     ),
                   ),
@@ -152,30 +162,39 @@ class ReceivablesScreen extends ConsumerWidget {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isOverdue ? const Color(0x33EF4444) : const Color(0x33EAB308),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    occ.status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFFEAB308),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isOverdue ? const Color(0x33EF4444) : const Color(0x33EAB308),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        occ.status.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFFEAB308),
+                        ),
+                      ),
                     ),
-                  ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18, color: Color(0xFF38BDF8)),
+                      onPressed: () => _showAddReceivableDialog(context, ref, existing: occ),
+                      tooltip: 'Edit Receivable',
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Expected: ${DateFormat('MMM dd, yyyy').format(occ.expectedDate)}',
-                  style: const TextStyle(color: AppTheme.neutralGray, fontSize: 13),
+                  'Expected: ${DateFormat('MMM dd, yyyy').format(occ.expectedDate)} • ${occ.confidence.toUpperCase()} confidence',
+                  style: const TextStyle(color: AppTheme.neutralGray, fontSize: 12),
                 ),
                 Text(
                   CurrencyFormatter.format(pendingAmount, currencySymbol: currency),
@@ -217,6 +236,120 @@ class ReceivablesScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAddReceivableDialog(BuildContext context, WidgetRef ref, {IncomeOccurrence? existing}) {
+    final titleCtrl = TextEditingController(text: existing?.title ?? 'Pending Salary');
+    final amountCtrl = TextEditingController(text: existing?.amount.toStringAsFixed(0) ?? '');
+    DateTime expectedDate = existing?.expectedDate ?? DateTime.now();
+    String status = existing?.status ?? 'overdue';
+    String confidence = existing?.confidence ?? 'high';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: AppTheme.cardDark,
+            title: Text(existing == null ? 'Add Pending Salary / Receivable' : 'Edit Receivable'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Title (e.g. June 2026 Salary, Client Invoice)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Amount Owed'),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Expected / Month Date', style: TextStyle(fontSize: 13, color: AppTheme.neutralGray)),
+                    subtitle: Text(DateFormat('MMMM dd, yyyy').format(expectedDate), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    trailing: const Icon(Icons.calendar_month, color: Color(0xFF38BDF8)),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: expectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setState(() => expectedDate = picked);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: status,
+                    items: const [
+                      DropdownMenuItem(value: 'overdue', child: Text('Overdue (Unpaid Past Month)')),
+                      DropdownMenuItem(value: 'due', child: Text('Due Today')),
+                      DropdownMenuItem(value: 'expected', child: Text('Expected Future')),
+                      DropdownMenuItem(value: 'confirmed', child: Text('Confirmed')),
+                      DropdownMenuItem(value: 'delayed', child: Text('Delayed')),
+                    ],
+                    onChanged: (val) => setState(() => status = val ?? 'overdue'),
+                    decoration: const InputDecoration(labelText: 'Status'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: confidence,
+                    items: const [
+                      DropdownMenuItem(value: 'high', child: Text('High Confidence')),
+                      DropdownMenuItem(value: 'medium', child: Text('Medium Confidence')),
+                      DropdownMenuItem(value: 'low', child: Text('Low Confidence')),
+                    ],
+                    onChanged: (val) => setState(() => confidence = val ?? 'high'),
+                    decoration: const InputDecoration(labelText: 'Confidence Level'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () async {
+                  final db = ref.read(databaseProvider);
+                  final amt = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
+                  final title = titleCtrl.text.trim().isEmpty ? 'Pending Receivable' : titleCtrl.text.trim();
+
+                  if (existing == null) {
+                    await db.into(db.incomeOccurrences).insert(
+                          IncomeOccurrencesCompanion.insert(
+                            title: title,
+                            amount: amt,
+                            expectedDate: expectedDate,
+                            status: drift.Value(status),
+                            confidence: drift.Value(confidence),
+                          ),
+                        );
+                  } else {
+                    await (db.update(db.incomeOccurrences)..where((tbl) => tbl.id.equals(existing.id))).write(
+                      IncomeOccurrencesCompanion(
+                        title: drift.Value(title),
+                        amount: drift.Value(amt),
+                        expectedDate: drift.Value(expectedDate),
+                        status: drift.Value(status),
+                        confidence: drift.Value(confidence),
+                      ),
+                    );
+                  }
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: Text(existing == null ? 'Add Receivable' : 'Update Receivable'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
