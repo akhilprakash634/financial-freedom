@@ -3170,6 +3170,12 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
       'start_date', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _endDateMeta =
+      const VerificationMeta('endDate');
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+      'end_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _tenureMonthsMeta =
       const VerificationMeta('tenureMonths');
   @override
@@ -3220,6 +3226,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         paymentFrequency,
         dueDay,
         startDate,
+        endDate,
         tenureMonths,
         priority,
         status,
@@ -3309,6 +3316,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     } else if (isInserting) {
       context.missing(_startDateMeta);
     }
+    if (data.containsKey('end_date')) {
+      context.handle(_endDateMeta,
+          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
+    }
     if (data.containsKey('tenure_months')) {
       context.handle(
           _tenureMonthsMeta,
@@ -3364,6 +3375,8 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
           .read(DriftSqlType.int, data['${effectivePrefix}due_day'])!,
       startDate: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date'])!,
+      endDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
       tenureMonths: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}tenure_months'])!,
       priority: attachedDatabase.typeMapping
@@ -3396,6 +3409,7 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String paymentFrequency;
   final int dueDay;
   final DateTime startDate;
+  final DateTime? endDate;
   final int tenureMonths;
   final int priority;
   final String status;
@@ -3414,6 +3428,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       required this.paymentFrequency,
       required this.dueDay,
       required this.startDate,
+      this.endDate,
       required this.tenureMonths,
       required this.priority,
       required this.status,
@@ -3434,6 +3449,9 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['payment_frequency'] = Variable<String>(paymentFrequency);
     map['due_day'] = Variable<int>(dueDay);
     map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
     map['tenure_months'] = Variable<int>(tenureMonths);
     map['priority'] = Variable<int>(priority);
     map['status'] = Variable<String>(status);
@@ -3458,6 +3476,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       paymentFrequency: Value(paymentFrequency),
       dueDay: Value(dueDay),
       startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
       tenureMonths: Value(tenureMonths),
       priority: Value(priority),
       status: Value(status),
@@ -3483,6 +3504,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       paymentFrequency: serializer.fromJson<String>(json['paymentFrequency']),
       dueDay: serializer.fromJson<int>(json['dueDay']),
       startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
       tenureMonths: serializer.fromJson<int>(json['tenureMonths']),
       priority: serializer.fromJson<int>(json['priority']),
       status: serializer.fromJson<String>(json['status']),
@@ -3506,6 +3528,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       'paymentFrequency': serializer.toJson<String>(paymentFrequency),
       'dueDay': serializer.toJson<int>(dueDay),
       'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
       'tenureMonths': serializer.toJson<int>(tenureMonths),
       'priority': serializer.toJson<int>(priority),
       'status': serializer.toJson<String>(status),
@@ -3527,6 +3550,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           String? paymentFrequency,
           int? dueDay,
           DateTime? startDate,
+          Value<DateTime?> endDate = const Value.absent(),
           int? tenureMonths,
           int? priority,
           String? status,
@@ -3545,6 +3569,7 @@ class Debt extends DataClass implements Insertable<Debt> {
         paymentFrequency: paymentFrequency ?? this.paymentFrequency,
         dueDay: dueDay ?? this.dueDay,
         startDate: startDate ?? this.startDate,
+        endDate: endDate.present ? endDate.value : this.endDate,
         tenureMonths: tenureMonths ?? this.tenureMonths,
         priority: priority ?? this.priority,
         status: status ?? this.status,
@@ -3577,6 +3602,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           : this.paymentFrequency,
       dueDay: data.dueDay.present ? data.dueDay.value : this.dueDay,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
       tenureMonths: data.tenureMonths.present
           ? data.tenureMonths.value
           : this.tenureMonths,
@@ -3602,6 +3628,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('paymentFrequency: $paymentFrequency, ')
           ..write('dueDay: $dueDay, ')
           ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
           ..write('tenureMonths: $tenureMonths, ')
           ..write('priority: $priority, ')
           ..write('status: $status, ')
@@ -3625,6 +3652,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       paymentFrequency,
       dueDay,
       startDate,
+      endDate,
       tenureMonths,
       priority,
       status,
@@ -3646,6 +3674,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.paymentFrequency == this.paymentFrequency &&
           other.dueDay == this.dueDay &&
           other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
           other.tenureMonths == this.tenureMonths &&
           other.priority == this.priority &&
           other.status == this.status &&
@@ -3666,6 +3695,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String> paymentFrequency;
   final Value<int> dueDay;
   final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
   final Value<int> tenureMonths;
   final Value<int> priority;
   final Value<String> status;
@@ -3684,6 +3714,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.paymentFrequency = const Value.absent(),
     this.dueDay = const Value.absent(),
     this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
     this.tenureMonths = const Value.absent(),
     this.priority = const Value.absent(),
     this.status = const Value.absent(),
@@ -3703,6 +3734,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.paymentFrequency = const Value.absent(),
     this.dueDay = const Value.absent(),
     required DateTime startDate,
+    this.endDate = const Value.absent(),
     this.tenureMonths = const Value.absent(),
     this.priority = const Value.absent(),
     this.status = const Value.absent(),
@@ -3728,6 +3760,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? paymentFrequency,
     Expression<int>? dueDay,
     Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
     Expression<int>? tenureMonths,
     Expression<int>? priority,
     Expression<String>? status,
@@ -3747,6 +3780,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (paymentFrequency != null) 'payment_frequency': paymentFrequency,
       if (dueDay != null) 'due_day': dueDay,
       if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
       if (tenureMonths != null) 'tenure_months': tenureMonths,
       if (priority != null) 'priority': priority,
       if (status != null) 'status': status,
@@ -3768,6 +3802,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       Value<String>? paymentFrequency,
       Value<int>? dueDay,
       Value<DateTime>? startDate,
+      Value<DateTime?>? endDate,
       Value<int>? tenureMonths,
       Value<int>? priority,
       Value<String>? status,
@@ -3786,6 +3821,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       paymentFrequency: paymentFrequency ?? this.paymentFrequency,
       dueDay: dueDay ?? this.dueDay,
       startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       tenureMonths: tenureMonths ?? this.tenureMonths,
       priority: priority ?? this.priority,
       status: status ?? this.status,
@@ -3833,6 +3869,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (startDate.present) {
       map['start_date'] = Variable<DateTime>(startDate.value);
     }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
     if (tenureMonths.present) {
       map['tenure_months'] = Variable<int>(tenureMonths.value);
     }
@@ -3866,6 +3905,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('paymentFrequency: $paymentFrequency, ')
           ..write('dueDay: $dueDay, ')
           ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
           ..write('tenureMonths: $tenureMonths, ')
           ..write('priority: $priority, ')
           ..write('status: $status, ')
@@ -8280,6 +8320,7 @@ typedef $$DebtsTableCreateCompanionBuilder = DebtsCompanion Function({
   Value<String> paymentFrequency,
   Value<int> dueDay,
   required DateTime startDate,
+  Value<DateTime?> endDate,
   Value<int> tenureMonths,
   Value<int> priority,
   Value<String> status,
@@ -8299,6 +8340,7 @@ typedef $$DebtsTableUpdateCompanionBuilder = DebtsCompanion Function({
   Value<String> paymentFrequency,
   Value<int> dueDay,
   Value<DateTime> startDate,
+  Value<DateTime?> endDate,
   Value<int> tenureMonths,
   Value<int> priority,
   Value<String> status,
@@ -8372,6 +8414,9 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<DateTime> get startDate => $composableBuilder(
       column: $table.startDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get tenureMonths => $composableBuilder(
       column: $table.tenureMonths, builder: (column) => ColumnFilters(column));
@@ -8461,6 +8506,9 @@ class $$DebtsTableOrderingComposer
   ColumnOrderings<DateTime> get startDate => $composableBuilder(
       column: $table.startDate, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get tenureMonths => $composableBuilder(
       column: $table.tenureMonths,
       builder: (column) => ColumnOrderings(column));
@@ -8522,6 +8570,9 @@ class $$DebtsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
 
   GeneratedColumn<int> get tenureMonths => $composableBuilder(
       column: $table.tenureMonths, builder: (column) => column);
@@ -8595,6 +8646,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<String> paymentFrequency = const Value.absent(),
             Value<int> dueDay = const Value.absent(),
             Value<DateTime> startDate = const Value.absent(),
+            Value<DateTime?> endDate = const Value.absent(),
             Value<int> tenureMonths = const Value.absent(),
             Value<int> priority = const Value.absent(),
             Value<String> status = const Value.absent(),
@@ -8614,6 +8666,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             paymentFrequency: paymentFrequency,
             dueDay: dueDay,
             startDate: startDate,
+            endDate: endDate,
             tenureMonths: tenureMonths,
             priority: priority,
             status: status,
@@ -8633,6 +8686,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             Value<String> paymentFrequency = const Value.absent(),
             Value<int> dueDay = const Value.absent(),
             required DateTime startDate,
+            Value<DateTime?> endDate = const Value.absent(),
             Value<int> tenureMonths = const Value.absent(),
             Value<int> priority = const Value.absent(),
             Value<String> status = const Value.absent(),
@@ -8652,6 +8706,7 @@ class $$DebtsTableTableManager extends RootTableManager<
             paymentFrequency: paymentFrequency,
             dueDay: dueDay,
             startDate: startDate,
+            endDate: endDate,
             tenureMonths: tenureMonths,
             priority: priority,
             status: status,

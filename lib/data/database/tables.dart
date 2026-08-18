@@ -88,6 +88,7 @@ class Debts extends Table {
   TextColumn get paymentFrequency => text().withDefault(const Constant('monthly'))();
   IntColumn get dueDay => integer().withDefault(const Constant(1))();
   DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
   IntColumn get tenureMonths => integer().withDefault(const Constant(12))();
   IntColumn get priority => integer().withDefault(const Constant(1))();
   TextColumn get status => text().withDefault(const Constant('active'))(); // active, settled

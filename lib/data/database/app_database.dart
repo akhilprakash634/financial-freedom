@@ -24,7 +24,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -32,6 +32,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.createTable(incomeOccurrences);
             await m.addColumn(incomeSources, incomeSources.defaultConfidence);
+          }
+          if (from < 3) {
+            await m.addColumn(debts, debts.endDate);
           }
         },
       );

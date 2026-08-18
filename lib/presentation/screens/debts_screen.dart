@@ -199,7 +199,9 @@ class DebtsScreen extends ConsumerWidget {
                 )
               else
                 ...sortedDebts.map((debt) {
-                  final remainingMonths = DebtEngine.calculateRemainingPayments(debt);
+                  final remainingMonths = DebtEngine.calculateRemainingPayments(debt, currentDate);
+                  final elapsedMonths = DebtEngine.calculateElapsedPayments(debt, currentDate);
+                  final totalTenure = DebtEngine.calculateTotalTenureMonths(debt);
                   final finishDate = DebtEngine.calculateDebtFinishDate(debt, currentDate);
                   final progress = debt.originalAmount > 0
                       ? ((debt.originalAmount - debt.currentBalance) / debt.originalAmount).clamp(0.0, 1.0)
@@ -252,7 +254,7 @@ class DebtsScreen extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Paid: ${(progress * 100).toStringAsFixed(0)}%',
+                                'Paid: ${(progress * 100).toStringAsFixed(0)}% ($elapsedMonths / $totalTenure EMIs)',
                                 style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray),
                               ),
                               Flexible(
@@ -265,18 +267,30 @@ class DebtsScreen extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          // Display Total Tenure vs Pending Tenure
+                          // Display Start & End Date with Total & Pending Tenure
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: const Color(0x2210B981),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
                               children: [
-                                Text('Total Tenure: ${debt.tenureMonths} mos', style: const TextStyle(fontSize: 12, color: Colors.white70)),
-                                Text('Pending Tenure: $remainingMonths ${remainingMonths == 1 ? "mo" : "mos"}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald)),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Start: ${DateFormat('MMM yyyy').format(debt.startDate)}', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                    Text('End: ${DateFormat('MMM dd, yyyy').format(finishDate)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald)),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Tenure: $totalTenure months', style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray)),
+                                    Text('Pending: $remainingMonths ${remainingMonths == 1 ? "EMI" : "EMIs"}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.warningAmber)),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -288,7 +302,7 @@ class DebtsScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('EMI: ${CurrencyFormatter.format(debt.emiAmount, currencySymbol: currency)}/mo', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                                  Text('Finish: ${DateFormat('MMM dd, yyyy').format(finishDate)} ($remainingMonths ${remainingMonths == 1 ? "payment" : "payments"} left)', style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray)),
+                                  Text('Closes: ${DateFormat('MMM dd, yyyy').format(finishDate)} ($remainingMonths ${remainingMonths == 1 ? "payment" : "payments"} left)', style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray)),
                                 ],
                               );
                               final button = ElevatedButton.icon(
@@ -346,98 +360,148 @@ class DebtsScreen extends ConsumerWidget {
     String debtType = existing?.debtType ?? 'emi_loan';
     String status = existing?.status ?? 'active';
 
+    DateTime startDate = existing?.startDate ?? DateTime.now();
+    DateTime? endDate = existing?.endDate;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        title: Text(existing == null ? 'Add New Debt' : 'Edit Debt / Loan'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Debt Name (e.g. Personal Loan)')),
-              TextField(controller: lenderCtrl, decoration: const InputDecoration(labelText: 'Lender / Bank Name')),
-              DropdownButtonFormField<String>(
-                initialValue: debtType,
-                items: const [
-                  DropdownMenuItem(value: 'emi_loan', child: Text('EMI Loan')),
-                  DropdownMenuItem(value: 'credit_card', child: Text('Credit Card')),
-                  DropdownMenuItem(value: 'personal_debt', child: Text('Personal Debt')),
-                  DropdownMenuItem(value: 'bnpl', child: Text('BNPL')),
-                  DropdownMenuItem(value: 'family_friend', child: Text('Family / Friend')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: AppTheme.cardDark,
+            title: Text(existing == null ? 'Add New Debt / Loan' : 'Edit Debt / Loan'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Debt Name (e.g. Personal Loan)')),
+                  TextField(controller: lenderCtrl, decoration: const InputDecoration(labelText: 'Lender / Bank Name')),
+                  DropdownButtonFormField<String>(
+                    initialValue: debtType,
+                    items: const [
+                      DropdownMenuItem(value: 'emi_loan', child: Text('EMI Loan')),
+                      DropdownMenuItem(value: 'credit_card', child: Text('Credit Card')),
+                      DropdownMenuItem(value: 'personal_debt', child: Text('Personal Debt')),
+                      DropdownMenuItem(value: 'bnpl', child: Text('BNPL')),
+                      DropdownMenuItem(value: 'family_friend', child: Text('Family / Friend')),
+                    ],
+                    onChanged: (val) => setState(() => debtType = val ?? 'emi_loan'),
+                    decoration: const InputDecoration(labelText: 'Debt Type'),
+                  ),
+                  TextField(controller: originalAmountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Original Amount')),
+                  TextField(controller: currentBalanceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Current Outstanding Balance')),
+                  TextField(controller: emiCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Monthly EMI / Payment')),
+                  const SizedBox(height: 12),
+                  // EMI Start Month / Date Picker
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('EMI Start Date', style: TextStyle(fontSize: 13, color: AppTheme.neutralGray)),
+                    subtitle: Text(DateFormat('MMMM dd, yyyy').format(startDate), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    trailing: const Icon(Icons.calendar_month, color: AppTheme.primaryEmerald),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: startDate,
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2035),
+                      );
+                      if (picked != null) {
+                        setState(() => startDate = picked);
+                      }
+                    },
+                  ),
+                  // EMI End Month / Closure Date Picker
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('EMI End / Closure Date', style: TextStyle(fontSize: 13, color: AppTheme.neutralGray)),
+                    subtitle: Text(
+                      endDate != null ? DateFormat('MMMM dd, yyyy').format(endDate!) : 'Auto-calculate from balance',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald),
+                    ),
+                    trailing: const Icon(Icons.event_available, color: AppTheme.primaryEmerald),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: endDate ?? DateTime.now().add(const Duration(days: 30)),
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime(2040),
+                      );
+                      if (picked != null) {
+                        setState(() => endDate = picked);
+                      }
+                    },
+                  ),
+                  TextField(controller: tenureCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total Tenure (Total Months)')),
+                  TextField(controller: interestRateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Interest Rate % per annum')),
+                  TextField(controller: dueDayCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Payment Due Day of Month (1-31)')),
+                  if (existing != null)
+                    DropdownButtonFormField<String>(
+                      initialValue: status,
+                      items: const [
+                        DropdownMenuItem(value: 'active', child: Text('Active')),
+                        DropdownMenuItem(value: 'settled', child: Text('Settled / Closed')),
+                      ],
+                      onChanged: (val) => setState(() => status = val ?? 'active'),
+                      decoration: const InputDecoration(labelText: 'Status'),
+                    ),
                 ],
-                onChanged: (val) => debtType = val ?? 'emi_loan',
-                decoration: const InputDecoration(labelText: 'Debt Type'),
               ),
-              TextField(controller: originalAmountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Original Amount')),
-              TextField(controller: currentBalanceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Current Outstanding Balance')),
-              TextField(controller: emiCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Monthly EMI / Payment')),
-              TextField(controller: tenureCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total Tenure (Total Months)')),
-              TextField(controller: interestRateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Interest Rate % per annum')),
-              TextField(controller: dueDayCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Payment Due Day of Month (1-31)')),
-              if (existing != null)
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  items: const [
-                    DropdownMenuItem(value: 'active', child: Text('Active')),
-                    DropdownMenuItem(value: 'settled', child: Text('Settled / Closed')),
-                  ],
-                  onChanged: (val) => status = val ?? 'active',
-                  decoration: const InputDecoration(labelText: 'Status'),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final db = ref.read(databaseProvider);
-              final orig = double.tryParse(originalAmountCtrl.text.trim()) ?? 0.0;
-              final curr = double.tryParse(currentBalanceCtrl.text.trim()) ?? orig;
-              final emi = double.tryParse(emiCtrl.text.trim()) ?? 0.0;
-              final tenure = int.tryParse(tenureCtrl.text.trim()) ?? 12;
-              final rate = double.tryParse(interestRateCtrl.text.trim()) ?? 0.0;
-              final dueDay = int.tryParse(dueDayCtrl.text.trim()) ?? 5;
-              final name = nameCtrl.text.trim().isEmpty ? 'Debt Loan' : nameCtrl.text.trim();
-              final lender = lenderCtrl.text.trim().isEmpty ? 'Lender' : lenderCtrl.text.trim();
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () async {
+                  final db = ref.read(databaseProvider);
+                  final orig = double.tryParse(originalAmountCtrl.text.trim()) ?? 0.0;
+                  final curr = double.tryParse(currentBalanceCtrl.text.trim()) ?? orig;
+                  final emi = double.tryParse(emiCtrl.text.trim()) ?? 0.0;
+                  final tenure = int.tryParse(tenureCtrl.text.trim()) ?? 12;
+                  final rate = double.tryParse(interestRateCtrl.text.trim()) ?? 0.0;
+                  final dueDay = int.tryParse(dueDayCtrl.text.trim()) ?? 5;
+                  final name = nameCtrl.text.trim().isEmpty ? 'Debt Loan' : nameCtrl.text.trim();
+                  final lender = lenderCtrl.text.trim().isEmpty ? 'Lender' : lenderCtrl.text.trim();
 
-              if (existing == null) {
-                await db.into(db.debts).insert(
-                  DebtsCompanion.insert(
-                    name: name,
-                    lenderBorrower: lender,
-                    debtType: debtType,
-                    originalAmount: orig,
-                    currentBalance: curr,
-                    interestRate: drift.Value(rate),
-                    emiAmount: emi,
-                    tenureMonths: drift.Value(tenure),
-                    dueDay: drift.Value(dueDay),
-                    startDate: DateTime.now(),
-                  ),
-                );
-              } else {
-                await (db.update(db.debts)..where((d) => d.id.equals(existing.id))).write(
-                  DebtsCompanion(
-                    name: drift.Value(name),
-                    lenderBorrower: drift.Value(lender),
-                    debtType: drift.Value(debtType),
-                    originalAmount: drift.Value(orig),
-                    currentBalance: drift.Value(curr),
-                    interestRate: drift.Value(rate),
-                    emiAmount: drift.Value(emi),
-                    tenureMonths: drift.Value(tenure),
-                    dueDay: drift.Value(dueDay),
-                    status: drift.Value(status),
-                  ),
-                );
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: Text(existing == null ? 'Save Debt' : 'Update Debt'),
-          ),
-        ],
+                  if (existing == null) {
+                    await db.into(db.debts).insert(
+                      DebtsCompanion.insert(
+                        name: name,
+                        lenderBorrower: lender,
+                        debtType: debtType,
+                        originalAmount: orig,
+                        currentBalance: curr,
+                        interestRate: drift.Value(rate),
+                        emiAmount: emi,
+                        tenureMonths: drift.Value(tenure),
+                        dueDay: drift.Value(dueDay),
+                        startDate: startDate,
+                        endDate: drift.Value(endDate),
+                      ),
+                    );
+                  } else {
+                    await (db.update(db.debts)..where((d) => d.id.equals(existing.id))).write(
+                      DebtsCompanion(
+                        name: drift.Value(name),
+                        lenderBorrower: drift.Value(lender),
+                        debtType: drift.Value(debtType),
+                        originalAmount: drift.Value(orig),
+                        currentBalance: drift.Value(curr),
+                        interestRate: drift.Value(rate),
+                        emiAmount: drift.Value(emi),
+                        tenureMonths: drift.Value(tenure),
+                        dueDay: drift.Value(dueDay),
+                        startDate: drift.Value(startDate),
+                        endDate: drift.Value(endDate),
+                        status: drift.Value(status),
+                      ),
+                    );
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: Text(existing == null ? 'Save Debt' : 'Update Debt'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
