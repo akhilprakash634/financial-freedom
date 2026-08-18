@@ -1,5 +1,6 @@
 import '../../data/database/app_database.dart';
 import '../../core/utils/date_utils.dart';
+import 'debt_engine.dart';
 
 class CashFlowTimelineEvent {
   final DateTime date;
@@ -88,16 +89,23 @@ class CashFlowEngine {
       }
     }
 
-    // 2. Active Debt EMI occurrences
+    // 2. Active Debt EMI occurrences (Strictly capped by remaining payments count!)
     for (final debt in activeDebts) {
       if (debt.status != 'active' || debt.currentBalance <= 0 || debt.emiAmount <= 0) continue;
+
+      final remainingPayments = DebtEngine.calculateRemainingPayments(debt);
+      if (remainingPayments <= 0) continue;
 
       final occurrences = AppDateUtils.generateMonthlyOccurrences(
         targetDay: debt.dueDay,
         startDate: currentDate,
         endDate: endDate,
       );
-      for (final occ in occurrences) {
+
+      // Only take max remainingPayments occurrences so closing debts stop recurring!
+      final cappedOccurrences = occurrences.take(remainingPayments);
+
+      for (final occ in cappedOccurrences) {
         rawEvents.add((
           date: occ,
           title: '${debt.name} EMI',

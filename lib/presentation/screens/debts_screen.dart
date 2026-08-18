@@ -28,7 +28,7 @@ class DebtsScreen extends ConsumerWidget {
         title: const Text('Debts & Loan Tracker'),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddDebtDialog(context, ref),
+        onPressed: () => _showDebtDialog(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('Add Debt'),
         backgroundColor: AppTheme.primaryEmerald,
@@ -224,9 +224,18 @@ class DebtsScreen extends ConsumerWidget {
                                   ],
                                 ),
                               ),
-                              Chip(
-                                label: Text(debt.debtType.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                                backgroundColor: AppTheme.borderDark,
+                              Row(
+                                children: [
+                                  Chip(
+                                    label: Text(debt.debtType.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                    backgroundColor: AppTheme.borderDark,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, size: 18, color: AppTheme.primaryEmerald),
+                                    onPressed: () => _showDebtDialog(context, ref, existing: debt),
+                                    tooltip: 'Edit Debt',
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -255,6 +264,22 @@ class DebtsScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 10),
+                          // Display Total Tenure vs Pending Tenure
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0x2210B981),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total Tenure: ${debt.tenureMonths} mos', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                Text('Pending Tenure: $remainingMonths ${remainingMonths == 1 ? "mo" : "mos"}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryEmerald)),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           LayoutBuilder(
                             builder: (context, constraints) {
@@ -263,7 +288,7 @@ class DebtsScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('EMI: ${CurrencyFormatter.format(debt.emiAmount, currencySymbol: currency)}/mo', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                                  Text('Finish: ${DateFormat('MMM yyyy').format(finishDate)} ($remainingMonths mos remaining)', style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray)),
+                                  Text('Finish: ${DateFormat('MMM dd, yyyy').format(finishDate)} ($remainingMonths ${remainingMonths == 1 ? "payment" : "payments"} left)', style: const TextStyle(fontSize: 11, color: AppTheme.neutralGray)),
                                 ],
                               );
                               final button = ElevatedButton.icon(
@@ -309,20 +334,23 @@ class DebtsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAddDebtDialog(BuildContext context, WidgetRef ref) {
-    final nameCtrl = TextEditingController();
-    final lenderCtrl = TextEditingController();
-    final originalAmountCtrl = TextEditingController();
-    final currentBalanceCtrl = TextEditingController();
-    final emiCtrl = TextEditingController();
-    final interestRateCtrl = TextEditingController(text: '12.0');
-    final dueDayCtrl = TextEditingController(text: '5');
-    String debtType = 'emi_loan';
+  void _showDebtDialog(BuildContext context, WidgetRef ref, {Debt? existing}) {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final lenderCtrl = TextEditingController(text: existing?.lenderBorrower ?? '');
+    final originalAmountCtrl = TextEditingController(text: existing?.originalAmount.toStringAsFixed(0) ?? '');
+    final currentBalanceCtrl = TextEditingController(text: existing?.currentBalance.toStringAsFixed(0) ?? '');
+    final emiCtrl = TextEditingController(text: existing?.emiAmount.toStringAsFixed(0) ?? '');
+    final tenureCtrl = TextEditingController(text: existing?.tenureMonths.toString() ?? '12');
+    final interestRateCtrl = TextEditingController(text: existing?.interestRate.toString() ?? '12.0');
+    final dueDayCtrl = TextEditingController(text: existing?.dueDay.toString() ?? '5');
+    String debtType = existing?.debtType ?? 'emi_loan';
+    String status = existing?.status ?? 'active';
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add New Debt'),
+        backgroundColor: AppTheme.cardDark,
+        title: Text(existing == null ? 'Add New Debt' : 'Edit Debt / Loan'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -341,11 +369,22 @@ class DebtsScreen extends ConsumerWidget {
                 onChanged: (val) => debtType = val ?? 'emi_loan',
                 decoration: const InputDecoration(labelText: 'Debt Type'),
               ),
-              TextField(controller: originalAmountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Original Amount')),
-              TextField(controller: currentBalanceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Current Outstanding Balance')),
-              TextField(controller: emiCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Monthly EMI / Minimum Payment')),
-              TextField(controller: interestRateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Interest Rate % per annum')),
+              TextField(controller: originalAmountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Original Amount')),
+              TextField(controller: currentBalanceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Current Outstanding Balance')),
+              TextField(controller: emiCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Monthly EMI / Payment')),
+              TextField(controller: tenureCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total Tenure (Total Months)')),
+              TextField(controller: interestRateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Interest Rate % per annum')),
               TextField(controller: dueDayCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Payment Due Day of Month (1-31)')),
+              if (existing != null)
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  items: const [
+                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                    DropdownMenuItem(value: 'settled', child: Text('Settled / Closed')),
+                  ],
+                  onChanged: (val) => status = val ?? 'active',
+                  decoration: const InputDecoration(labelText: 'Status'),
+                ),
             ],
           ),
         ),
@@ -354,28 +393,49 @@ class DebtsScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               final db = ref.read(databaseProvider);
-              final orig = double.tryParse(originalAmountCtrl.text) ?? 0.0;
-              final curr = double.tryParse(currentBalanceCtrl.text) ?? orig;
-              final emi = double.tryParse(emiCtrl.text) ?? 0.0;
-              final rate = double.tryParse(interestRateCtrl.text) ?? 0.0;
-              final dueDay = int.tryParse(dueDayCtrl.text) ?? 1;
+              final orig = double.tryParse(originalAmountCtrl.text.trim()) ?? 0.0;
+              final curr = double.tryParse(currentBalanceCtrl.text.trim()) ?? orig;
+              final emi = double.tryParse(emiCtrl.text.trim()) ?? 0.0;
+              final tenure = int.tryParse(tenureCtrl.text.trim()) ?? 12;
+              final rate = double.tryParse(interestRateCtrl.text.trim()) ?? 0.0;
+              final dueDay = int.tryParse(dueDayCtrl.text.trim()) ?? 5;
+              final name = nameCtrl.text.trim().isEmpty ? 'Debt Loan' : nameCtrl.text.trim();
+              final lender = lenderCtrl.text.trim().isEmpty ? 'Lender' : lenderCtrl.text.trim();
 
-              await db.into(db.debts).insert(
-                DebtsCompanion.insert(
-                  name: nameCtrl.text.isEmpty ? 'Debt Loan' : nameCtrl.text,
-                  lenderBorrower: lenderCtrl.text.isEmpty ? 'Lender' : lenderCtrl.text,
-                  debtType: debtType,
-                  originalAmount: orig,
-                  currentBalance: curr,
-                  interestRate: drift.Value(rate),
-                  emiAmount: emi,
-                  dueDay: drift.Value(dueDay),
-                  startDate: DateTime.now(),
-                ),
-              );
+              if (existing == null) {
+                await db.into(db.debts).insert(
+                  DebtsCompanion.insert(
+                    name: name,
+                    lenderBorrower: lender,
+                    debtType: debtType,
+                    originalAmount: orig,
+                    currentBalance: curr,
+                    interestRate: drift.Value(rate),
+                    emiAmount: emi,
+                    tenureMonths: drift.Value(tenure),
+                    dueDay: drift.Value(dueDay),
+                    startDate: DateTime.now(),
+                  ),
+                );
+              } else {
+                await (db.update(db.debts)..where((d) => d.id.equals(existing.id))).write(
+                  DebtsCompanion(
+                    name: drift.Value(name),
+                    lenderBorrower: drift.Value(lender),
+                    debtType: drift.Value(debtType),
+                    originalAmount: drift.Value(orig),
+                    currentBalance: drift.Value(curr),
+                    interestRate: drift.Value(rate),
+                    emiAmount: drift.Value(emi),
+                    tenureMonths: drift.Value(tenure),
+                    dueDay: drift.Value(dueDay),
+                    status: drift.Value(status),
+                  ),
+                );
+              }
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Save Debt'),
+            child: Text(existing == null ? 'Save Debt' : 'Update Debt'),
           ),
         ],
       ),
@@ -389,6 +449,7 @@ class DebtsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
         title: Text('Record Payment for ${debt.name}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -396,7 +457,7 @@ class DebtsScreen extends ConsumerWidget {
           children: [
             Text('Current Outstanding: ${CurrencyFormatter.format(debt.currentBalance, currencySymbol: currency)}'),
             const SizedBox(height: 12),
-            TextField(controller: payAmountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Payment Amount')),
+            TextField(controller: payAmountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Payment Amount')),
             TextField(controller: noteCtrl, decoration: const InputDecoration(labelText: 'Payment Note')),
           ],
         ),
@@ -405,7 +466,7 @@ class DebtsScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               final db = ref.read(databaseProvider);
-              final amount = double.tryParse(payAmountCtrl.text) ?? 0.0;
+              final amount = double.tryParse(payAmountCtrl.text.trim()) ?? 0.0;
               if (amount <= 0) return;
 
               final accounts = await db.select(db.accounts).get();
@@ -430,7 +491,7 @@ class DebtsScreen extends ConsumerWidget {
                   transactionId: drift.Value(txId),
                   amount: amount,
                   paymentDate: DateTime.now(),
-                  note: drift.Value(noteCtrl.text),
+                  note: drift.Value(noteCtrl.text.trim()),
                 ),
               );
 
